@@ -34,12 +34,12 @@ if ( ! function_exists( 'wp_die' ) ) {
 	 *     @type bool   $back_link      Whether to include a link to go back. Default false.
 	 * }
 	 */
-	function wp_die( $message = '', $title = '', $args = array() ) {
+	function wp_die( $message = '', $title = 'Error', $args = array() ) {
 		if ( is_int( $args ) ) {
 			$args = array( 'response' => $args );
 		} elseif ( is_int( $title ) ) {
 			$args  = array( 'response' => $title );
-			$title = '';
+			$title = 'Error';
 		}
 
 		$function = isset( $args['wp_die_handler'] ) ? $args['wp_die_handler'] : 'wp_die_handler';
@@ -60,7 +60,7 @@ if ( ! function_exists( 'wp_die_handler' ) ) {
 	 * @param string          $title   Optional. Error title. Default empty.
 	 * @param string|array    $args    Optional. Arguments to control behavior. Default empty array.
 	 */
-	function wp_die_handler( $message, $title = '', $args = array() ) {
+	function wp_die_handler( $message, $title = 'Error', $args = array() ) {
 		$defaults = array( 'response' => 500 );
 		$r        = array_merge( $defaults, $args );
 
@@ -75,10 +75,6 @@ if ( ! function_exists( 'wp_die_handler' ) ) {
 
 		status_header( $r['response'] );
 		header( 'Content-Type: text/html; charset=utf-8' );
-
-		if ( empty( $title ) ) {
-			$title = 'wp_die &rsaquo; Error';
-		}
 ?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
