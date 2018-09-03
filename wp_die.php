@@ -1,7 +1,7 @@
 <?php
 /**
  * Adds the `wp_die` function found in WordPress.
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 if ( ! function_exists( 'wp_die' ) ) {
@@ -35,32 +35,178 @@ if ( ! function_exists( 'wp_die' ) ) {
 	 * }
 	 */
 	function wp_die( $message = '', $title = 'Error', $args = array() ) {
-		if ( is_int( $args ) ) {
-			$args = array( 'response' => $args );
-		} elseif ( is_int( $title ) ) {
-			$args  = array( 'response' => $title );
-			$title = 'Error';
-		}
-
-		$function = isset( $args['wp_die_handler'] ) ? $args['wp_die_handler'] : 'wp_die_handler';
-		call_user_func( $function, $message, $title, $args );
+		$wpdie = new WpDie( $message, $title, $args );
+		$wpdie->execute();
 	}
 }
 
-if ( ! function_exists( 'wp_die_handler' ) ) {
+/**
+ * Handles the WP Die functionality.
+ * @since 1.0.1
+ */
+class WpDie {
+
+	/**
+	 * The message to display in the document.
+	 *
+	 * @var string
+	 */
+	public $message = '';
+
+	/**
+	 * The document title.
+	 *
+	 * @var string
+	 */
+	public $title = 'Error';
+
+	/**
+	 * The args for the view.
+	 *
+	 * @var array
+	 */
+	public $args = array(
+		'wp_die_handler' => 'WpDie::output',
+	);
+
+	/**
+	 * Descriptions for the various HTTP statii.
+	 *
+	 * @var array
+	 */
+	public static $headerDescriptions = array(
+		100 => 'Continue',
+		101 => 'Switching Protocols',
+		102 => 'Processing',
+		103 => 'Early Hints',
+
+		200 => 'OK',
+		201 => 'Created',
+		202 => 'Accepted',
+		203 => 'Non-Authoritative Information',
+		204 => 'No Content',
+		205 => 'Reset Content',
+		206 => 'Partial Content',
+		207 => 'Multi-Status',
+		226 => 'IM Used',
+
+		300 => 'Multiple Choices',
+		301 => 'Moved Permanently',
+		302 => 'Found',
+		303 => 'See Other',
+		304 => 'Not Modified',
+		305 => 'Use Proxy',
+		306 => 'Reserved',
+		307 => 'Temporary Redirect',
+		308 => 'Permanent Redirect',
+
+		400 => 'Bad Request',
+		401 => 'Unauthorized',
+		402 => 'Payment Required',
+		403 => 'Forbidden',
+		404 => 'Not Found',
+		405 => 'Method Not Allowed',
+		406 => 'Not Acceptable',
+		407 => 'Proxy Authentication Required',
+		408 => 'Request Timeout',
+		409 => 'Conflict',
+		410 => 'Gone',
+		411 => 'Length Required',
+		412 => 'Precondition Failed',
+		413 => 'Request Entity Too Large',
+		414 => 'Request-URI Too Long',
+		415 => 'Unsupported Media Type',
+		416 => 'Requested Range Not Satisfiable',
+		417 => 'Expectation Failed',
+		418 => 'I\'m a teapot',
+		421 => 'Misdirected Request',
+		422 => 'Unprocessable Entity',
+		423 => 'Locked',
+		424 => 'Failed Dependency',
+		426 => 'Upgrade Required',
+		428 => 'Precondition Required',
+		429 => 'Too Many Requests',
+		431 => 'Request Header Fields Too Large',
+		451 => 'Unavailable For Legal Reasons',
+
+		500 => 'Internal Server Error',
+		501 => 'Not Implemented',
+		502 => 'Bad Gateway',
+		503 => 'Service Unavailable',
+		504 => 'Gateway Timeout',
+		505 => 'HTTP Version Not Supported',
+		506 => 'Variant Also Negotiates',
+		507 => 'Insufficient Storage',
+		510 => 'Not Extended',
+		511 => 'Network Authentication Required',
+	);
+
+	/**
+	 * The constructor.
+	 *
+	 * As a shorthand, the desired HTTP response code may be passed as an integer to
+	 * the `$title` parameter (the default title would apply) or the `$args` parameter.
+	 *
+	 * @since 1.0.1
+	 *
+	 * @param string|WP_Error  $message Optional. Error message. If this is a WP_Error object,
+	 *                                  and not an Ajax or XML-RPC request, the error's messages are used.
+	 *                                  Default empty.
+	 * @param string|int       $title   Optional. Error title. If `$message` is a `WP_Error` object,
+	 *                                  error data with the key 'title' may be used to specify the title.
+	 *                                  If `$title` is an integer, then it is treated as the response
+	 *                                  code. Default empty.
+	 * @param string|array|int $args {
+	 *     Optional. Arguments to control behavior. If `$args` is an integer, then it is treated
+	 *     as the response code. Default empty array.
+	 *
+	 *     @type int    $response       The HTTP response code. Default 200 for Ajax requests, 500 otherwise.
+	 *     @type bool   $back_link      Whether to include a link to go back. Default false.
+	 * }
+	 */
+	public function __construct( $message = '', $title = 'Error', $args = array() ) {
+		$this->message = $message;
+		$this->title   = $title;
+		$this->args    = array_merge( $this->args, (array) $args );
+	}
+
+	/**
+	 * Kill execution and display HTML message with error message.
+	 *
+	 * This function complements the `die()` PHP function. The difference is that
+	 * HTML will be displayed to the user. It is recommended to use this function
+	 * only when the execution should not continue any further. It is not recommended
+	 * to call this function very often, and try to handle as many errors as possible
+	 * silently or more gracefully.
+	 *
+	 * @since  1.0.1
+	 *
+	 * @return void
+	 */
+	public function execute() {
+		if ( is_int( $this->args ) ) {
+			$this->args = array( 'response' => $this->args );
+		} elseif ( is_int( $this->title ) ) {
+			$this->args  = array( 'response' => $this->title );
+			$this->title = 'Error';
+		}
+
+		call_user_func( $this->args['wp_die_handler'], $this->message, $this->title, $this->args );
+	}
+
 	/**
 	 * Kills execution and display HTML message with error message.
 	 *
 	 * This is the default handler for wp_die if you want a custom one for your
 	 * site then you can overload using the wp_die_handler argument.
 	 *
-	 * @since 1.0.0
+	 * @since 1.0.1
 	 *
 	 * @param string|WP_Error $message Error message or WP_Error object.
 	 * @param string          $title   Optional. Error title. Default empty.
 	 * @param string|array    $args    Optional. Arguments to control behavior. Default empty array.
 	 */
-	function wp_die_handler( $message, $title = 'Error', $args = array() ) {
+	public static function output( $message, $title = 'Error', $args = array() ) {
 		$defaults = array( 'response' => 500 );
 		$r        = array_merge( $defaults, $args );
 
@@ -73,7 +219,7 @@ if ( ! function_exists( 'wp_die_handler' ) ) {
 			$message  .= "\n<p><a href='javascript:history.back()'>$back_text</a></p>";
 		}
 
-		status_header( $r['response'] );
+		self::statusHeader( $r['response'] );
 		header( 'Content-Type: text/html; charset=utf-8' );
 ?>
 <!DOCTYPE html>
@@ -201,22 +347,21 @@ if ( ! function_exists( 'wp_die_handler' ) ) {
 <?php
 		die();
 	}
-}
 
-if ( ! function_exists( 'status_header' ) ) {
+
 	/**
 	 * Set HTTP status header.
 	 *
-	 * @since 1.0.0
+	 * @since 1.0.1
 	 *
-	 * @see get_status_header_desc()
+	 * @see   WpDie::getStatusHeaderDesc()
 	 *
 	 * @param int    $code        HTTP status code.
 	 * @param string $description Optional. A custom description for the HTTP status.
 	 */
-	function status_header( $code, $description = '' ) {
+	public static function statusHeader( $code, $description = '' ) {
 		if ( ! $description ) {
-			$description = get_status_header_desc( $code );
+			$description = self::getStatusHeaderDesc( $code );
 		}
 
 		if ( empty( $description ) ) {
@@ -230,86 +375,17 @@ if ( ! function_exists( 'status_header' ) ) {
 
 		@header( "$protocol $code $description", true, $code );
 	}
-}
 
-if ( ! function_exists( 'get_status_header_desc' ) ) {
+
 	/**
 	 * Retrieve the description for the HTTP status.
 	 *
-	 * @since 1.0.0
+	 * @since 1.0.1
 	 *
 	 * @param int $code HTTP status code.
 	 * @return string Empty string if not found, or description if found.
 	 */
-	function get_status_header_desc( $code ) {
-		$header_descriptions = array(
-			100 => 'Continue',
-			101 => 'Switching Protocols',
-			102 => 'Processing',
-			103 => 'Early Hints',
-
-			200 => 'OK',
-			201 => 'Created',
-			202 => 'Accepted',
-			203 => 'Non-Authoritative Information',
-			204 => 'No Content',
-			205 => 'Reset Content',
-			206 => 'Partial Content',
-			207 => 'Multi-Status',
-			226 => 'IM Used',
-
-			300 => 'Multiple Choices',
-			301 => 'Moved Permanently',
-			302 => 'Found',
-			303 => 'See Other',
-			304 => 'Not Modified',
-			305 => 'Use Proxy',
-			306 => 'Reserved',
-			307 => 'Temporary Redirect',
-			308 => 'Permanent Redirect',
-
-			400 => 'Bad Request',
-			401 => 'Unauthorized',
-			402 => 'Payment Required',
-			403 => 'Forbidden',
-			404 => 'Not Found',
-			405 => 'Method Not Allowed',
-			406 => 'Not Acceptable',
-			407 => 'Proxy Authentication Required',
-			408 => 'Request Timeout',
-			409 => 'Conflict',
-			410 => 'Gone',
-			411 => 'Length Required',
-			412 => 'Precondition Failed',
-			413 => 'Request Entity Too Large',
-			414 => 'Request-URI Too Long',
-			415 => 'Unsupported Media Type',
-			416 => 'Requested Range Not Satisfiable',
-			417 => 'Expectation Failed',
-			418 => 'I\'m a teapot',
-			421 => 'Misdirected Request',
-			422 => 'Unprocessable Entity',
-			423 => 'Locked',
-			424 => 'Failed Dependency',
-			426 => 'Upgrade Required',
-			428 => 'Precondition Required',
-			429 => 'Too Many Requests',
-			431 => 'Request Header Fields Too Large',
-			451 => 'Unavailable For Legal Reasons',
-
-			500 => 'Internal Server Error',
-			501 => 'Not Implemented',
-			502 => 'Bad Gateway',
-			503 => 'Service Unavailable',
-			504 => 'Gateway Timeout',
-			505 => 'HTTP Version Not Supported',
-			506 => 'Variant Also Negotiates',
-			507 => 'Insufficient Storage',
-			510 => 'Not Extended',
-			511 => 'Network Authentication Required',
-		);
-
-		return isset( $header_descriptions[ $code ] ) ? $header_descriptions[ $code ] : '';
+	public static function getStatusHeaderDesc( $code ) {
+		return isset( self::$headerDescriptions[ $code ] ) ? self::$headerDescriptions[ $code ] : '';
 	}
 }
-
