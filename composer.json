@@ -1,0 +1,13 @@
+{
+    "name": "jtsternberg/wp_die",
+    "description": "Adds the `wp_die` function from WordPress, to provide a nicely formatted error page to your app, etc.",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Justin Sternberg",
+            "email": "justin@dsgnwrks.pro"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {}
+}
